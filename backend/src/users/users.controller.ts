@@ -18,6 +18,7 @@ import { Role } from '@prisma/client'; // Prisma Role enum
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { BadRequestException } from '@nestjs/common';
 
 // Custom request type including user
@@ -25,6 +26,8 @@ interface AuthRequest extends Request {
   user: { id: number; email: string; role: Role };
 }
 
+@ApiTags('Users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -35,6 +38,20 @@ export class UsersController {
 
   // POST /users/register → Create new user (no email verification)
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string' },
+        name: { type: 'string' },
+        password: { type: 'string' },
+        role: { type: 'string', enum: ['STUDENT', 'INSTRUCTOR'] },
+      },
+      required: ['email', 'password'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'User registered' })
   async register(
     @Body() body: { email: string; name?: string; password: string; role?: string },
   ) {
@@ -54,6 +71,8 @@ export class UsersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'List all users (instructor only)' })
+  @ApiResponse({ status: 200, description: 'Users returned' })
   async findAll() {
     return this.usersService.findAll();
   }
@@ -65,6 +84,8 @@ export class UsersController {
   // GET /users/me → Get current user's profile
   @UseGuards(JwtAuthGuard)
   @Get('me')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile returned' })
   async getProfile(@Req() req: AuthRequest) {
     return this.usersService.getMe(req.user.id);
   }
@@ -72,6 +93,18 @@ export class UsersController {
   // PATCH /users/me → Update current user's profile (name, bio, password)
   @UseGuards(JwtAuthGuard)
   @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        bio: { type: 'string' },
+        password: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Profile updated' })
   async updateProfile(
     @Req() req: AuthRequest,
     @Body() updateData: { name?: string; bio?: string; password?: string },
@@ -82,6 +115,18 @@ export class UsersController {
   // PUT /users/me/change-password → Change current user's password
   @UseGuards(JwtAuthGuard)
   @Put('me/change-password')
+  @ApiOperation({ summary: 'Change password for current user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        currentPassword: { type: 'string' },
+        newPassword: { type: 'string' },
+      },
+      required: ['currentPassword', 'newPassword'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Password changed' })
   async changePassword(
     @Req() req: AuthRequest,
     @Body() body: { currentPassword: string; newPassword: string },
@@ -100,6 +145,8 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Put('me/photo')
   @UseInterceptors(FileInterceptor('photo'))
+  @ApiOperation({ summary: 'Upload profile photo' })
+  @ApiResponse({ status: 200, description: 'Photo uploaded' })
   async uploadProfilePhoto(
     @UploadedFile() file: Express.Multer.File,
     @Req() req: AuthRequest,
@@ -114,6 +161,8 @@ export class UsersController {
   // GET /users/me/enrollments → Get current user's enrolled courses
   @UseGuards(JwtAuthGuard)
   @Get('me/enrollments')
+  @ApiOperation({ summary: 'Get current user enrollments' })
+  @ApiResponse({ status: 200, description: 'Enrollments returned' })
   async getMyEnrollments(@Req() req: AuthRequest) {
     return this.usersService.getMyEnrollments(req.user.id);
   }

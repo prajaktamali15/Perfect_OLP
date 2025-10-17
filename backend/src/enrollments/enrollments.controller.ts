@@ -15,6 +15,7 @@ import { EnrollmentsService } from './enrollments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export enum Role {
   STUDENT = 'STUDENT',
@@ -31,6 +32,8 @@ interface CompleteLessonDto {
   lessonId: number;
 }
 
+@ApiTags('Enrollments')
+@ApiBearerAuth()
 @Controller('enrollments')
 export class EnrollmentsController {
   constructor(private readonly enrollmentsService: EnrollmentsService) {}
@@ -39,6 +42,9 @@ export class EnrollmentsController {
   @Post('course/:courseId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Enroll current student into a course' })
+  @ApiParam({ name: 'courseId', description: 'Course ID' })
+  @ApiResponse({ status: 201, description: 'Enrolled successfully' })
   async enroll(@Req() req: RequestWithUser, @Param('courseId') courseId: string) {
     const studentId = req.user.id;
     const id = Number(courseId);
@@ -56,6 +62,9 @@ export class EnrollmentsController {
   @Get('course/:courseId/students')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Get students enrolled in a course' })
+  @ApiParam({ name: 'courseId', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Students list returned' })
   async getEnrolledStudents(@Param('courseId') courseId: string) {
     const id = Number(courseId);
     if (isNaN(id)) throw new BadRequestException('Invalid course ID');
@@ -69,6 +78,9 @@ export class EnrollmentsController {
   @Get('course-details/:courseId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Get course details for the enrolled student' })
+  @ApiParam({ name: 'courseId', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Course details returned' })
   async getCourseDetails(
     @Req() req: RequestWithUser,
     @Param('courseId') courseId: string,
@@ -91,6 +103,8 @@ export class EnrollmentsController {
   @Get('my-courses')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Get current student enrollments' })
+  @ApiResponse({ status: 200, description: 'Enrollments returned' })
   async myCourses(@Req() req: RequestWithUser) {
     const studentId = req.user.id;
     const enrollments = await this.enrollmentsService.getStudentEnrollments(studentId);
@@ -115,6 +129,16 @@ export class EnrollmentsController {
   @Patch('course/:courseId/complete-lesson')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.STUDENT)
+  @ApiOperation({ summary: 'Mark lesson as completed for a course' })
+  @ApiParam({ name: 'courseId', description: 'Course ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { lessonId: { type: 'number' } },
+      required: ['lessonId'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Lesson marked as completed' })
   async completeLesson(
     @Req() req: RequestWithUser,
     @Param('courseId') courseId: string,
@@ -145,6 +169,9 @@ export class EnrollmentsController {
 @Patch('course/:courseId/generate-certificate')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.STUDENT)
+@ApiOperation({ summary: 'Generate certificate for a completed course' })
+@ApiParam({ name: 'courseId', description: 'Course ID' })
+@ApiResponse({ status: 200, description: 'Certificate URL returned' })
 async generateCertificate(
   @Req() req: RequestWithUser,
   @Param('courseId') courseId: string,

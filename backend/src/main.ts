@@ -52,7 +52,7 @@ async function bootstrap() {
   // Setup Swagger UI
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
-      persistAuthorization: true, // ✅ Keep JWT between page reloads
+      persistAuthorization: true, 
     },
   });
   console.log('📄 Swagger docs available at: http://localhost:4000/api/docs');

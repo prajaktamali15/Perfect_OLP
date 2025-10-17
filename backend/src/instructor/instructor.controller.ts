@@ -34,8 +34,10 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { LessonDTO } from './dto/create-course.dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Instructor') // Swagger group
+@ApiBearerAuth()
 @Controller('instructor/courses')
 export class InstructorController {
   constructor(private readonly instructorService: InstructorService) {}

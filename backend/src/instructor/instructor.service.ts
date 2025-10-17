@@ -108,17 +108,38 @@ export class InstructorService {
   if (dto.lessons?.some((l) => !l.title))
     throw new BadRequestException('Each lesson must have a title');
 
+  // Defensive normalization to avoid Prisma validation errors from Swagger string inputs
+  const anyDto: any = dto as any;
+  let normalizedCategoryId: number | null | undefined = dto.categoryId;
+  if (typeof anyDto.categoryId === 'string') {
+    const trimmed = anyDto.categoryId.trim();
+    if (trimmed === '') {
+      normalizedCategoryId = null;
+    } else {
+      const parsed = Number(trimmed);
+      normalizedCategoryId = isNaN(parsed) ? null : parsed;
+    }
+  }
+
+  let normalizedPrerequisites: string[] | undefined = dto.prerequisites;
+  if (typeof anyDto.prerequisites === 'string') {
+    normalizedPrerequisites = (anyDto.prerequisites as string)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
   // Create course
   const course = await this.prisma.course.create({
     data: {
       title: dto.title,
       description: this.normalize(dto.description),
       instructorId: userId,
-      categoryId: dto.categoryId ?? undefined,
+      categoryId: normalizedCategoryId ?? null,
       difficulty: dto.difficulty ?? undefined,
       duration: dto.duration ?? undefined,        // ensure optional
       thumbnailUrl: dto.thumbnailUrl ?? undefined, // ensure optional
-      prerequisites: dto.prerequisites ?? [],
+      prerequisites: normalizedPrerequisites ?? [],
     },
   });
 

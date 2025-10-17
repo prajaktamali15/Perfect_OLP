@@ -32,17 +32,38 @@ export class CoursesService {
       order?: number;
     }[];
   }) {
+    // Normalize inputs defensively to avoid Prisma validation errors
+    const anyData: any = data as any;
+    let normalizedCategoryId: number | null | undefined = data.categoryId;
+    if (typeof anyData.categoryId === 'string') {
+      const trimmed = anyData.categoryId.trim();
+      if (trimmed === '') {
+        normalizedCategoryId = null;
+      } else {
+        const parsed = Number(trimmed);
+        normalizedCategoryId = isNaN(parsed) ? null : parsed;
+      }
+    }
+
+    let normalizedPrerequisites: string[] | undefined = data.prerequisites;
+    if (typeof (anyData.prerequisites) === 'string') {
+      normalizedPrerequisites = (anyData.prerequisites as string)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
     // Step 1: Create the course
     const course = await this.prisma.course.create({
       data: {
         title: data.title,
         description: data.description,
         instructorId: data.instructorId,
-        categoryId: data.categoryId,
+        categoryId: normalizedCategoryId ?? null,
         difficulty: data.difficulty || Difficulty.Beginner,
         duration: data.duration || '', // initial duration empty
         thumbnailUrl: data.thumbnailUrl,
-        prerequisites: data.prerequisites || [],
+        prerequisites: normalizedPrerequisites || [],
       },
     });
 
@@ -50,14 +71,19 @@ export class CoursesService {
     if (data.lessons && data.lessons.length > 0) {
       for (let i = 0; i < data.lessons.length; i++) {
         const lesson = data.lessons[i];
+        const title = (lesson?.title ?? '').toString().trim();
+        if (!title) {
+          // skip invalid lesson silently
+          continue;
+        }
         await this.prisma.lesson.create({
           data: {
-            title: lesson.title,
+            title,
             content: lesson.content,
             videoUrl: lesson.videoUrl,
             attachmentUrl: lesson.attachmentUrl,
             duration: lesson.duration,
-            order: lesson.order ?? i + 1,
+            order: typeof lesson.order === 'number' && !isNaN(lesson.order) ? lesson.order : i + 1,
             courseId: course.id,
           },
         });
@@ -245,10 +271,26 @@ export class CoursesService {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new NotFoundException('Course not found');
 
+    // Validate lesson IDs belong to this course and exist
+    const providedIds = lessonOrders.map((lo) => Number(lo.lessonId)).filter((n) => !isNaN(n));
+    if (providedIds.length !== lessonOrders.length) {
+      throw new BadRequestException('All lessonIds must be valid numbers');
+    }
+
+    const existingLessons = await this.prisma.lesson.findMany({
+      where: { id: { in: providedIds }, courseId },
+      select: { id: true },
+    });
+    const existingIds = new Set(existingLessons.map((l) => l.id));
+    const missing = providedIds.filter((id) => !existingIds.has(id));
+    if (missing.length) {
+      throw new BadRequestException(`Invalid lessonIds for this course: ${missing.join(', ')}`);
+    }
+
     const updatePromises = lessonOrders.map(({ lessonId, order }) =>
       this.prisma.lesson.update({
-        where: { id: lessonId },
-        data: { order },
+        where: { id: Number(lessonId) },
+        data: { order: Number(order) },
       }),
     );
 

@@ -19,12 +19,15 @@ import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import { Request } from 'express'; // ✅ import from express
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 // Extend Express Request with JWT user object
 interface AuthenticatedRequest extends Request {
   user: { id: number };
 }
 
+@ApiTags('Students')
+@ApiBearerAuth()
 @Controller('students')
 @UseGuards(JwtAuthGuard)
 export class StudentsController {
@@ -35,6 +38,8 @@ export class StudentsController {
    * GET /students/my-courses
    */
   @Get('my-courses')
+  @ApiOperation({ summary: 'Get courses current student is enrolled in' })
+  @ApiResponse({ status: 200, description: 'List of enrolled courses' })
   async getMyCourses(
     @Req() req: AuthenticatedRequest,
   ): Promise<EnrolledCourseWithProgress[]> {
@@ -46,6 +51,9 @@ export class StudentsController {
    * POST /students/enroll/:courseId
    */
   @Post('enroll/:courseId')
+  @ApiOperation({ summary: 'Enroll in a course' })
+  @ApiParam({ name: 'courseId', description: 'Course ID' })
+  @ApiResponse({ status: 201, description: 'Enrollment successful' })
   async enrollInCourse(
     @Req() req: AuthenticatedRequest,
     @Param('courseId') courseId: string,
@@ -58,6 +66,9 @@ export class StudentsController {
    * POST /students/complete/:courseId
    */
   @Post('complete/:courseId')
+  @ApiOperation({ summary: 'Mark course as completed and generate certificate' })
+  @ApiParam({ name: 'courseId', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Course completed' })
   async completeCourse(
     @Req() req: AuthenticatedRequest,
     @Param('courseId') courseId: string,
@@ -95,6 +106,8 @@ export class StudentsController {
       limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
     }),
   )
+  @ApiOperation({ summary: 'Upload or update student profile photo' })
+  @ApiResponse({ status: 200, description: 'Profile photo updated' })
   async uploadProfilePhoto(
     @UploadedFile() file: Express.Multer.File,
     @Req() req: AuthenticatedRequest,

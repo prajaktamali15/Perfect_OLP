@@ -20,11 +20,23 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 import { CreateCourseDto } from '../instructor/dto/create-course.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 interface RequestWithUser extends Request {
   user: { id: number; role: Role };
 }
 
+@ApiTags('Courses')
+@ApiBearerAuth()
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
@@ -33,6 +45,8 @@ export class CoursesController {
   // Public routes
   // -----------------------------
   @Get('public')
+  @ApiOperation({ summary: 'List all public courses' })
+  @ApiResponse({ status: 200, description: 'List of courses returned' })
   async findAllPublic() {
     try {
       return await this.coursesService.findAll();
@@ -41,7 +55,20 @@ export class CoursesController {
     }
   }
 
+  // Move analytics route BEFORE dynamic ':id' route to prevent route conflicts
+  @Get('analytics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Get analytics for instructor courses' })
+  @ApiResponse({ status: 200, description: 'Analytics returned' })
+  async getCourseAnalytics(@Req() req: RequestWithUser) {
+    return this.coursesService.getCourseAnalytics(req.user.id);
+  }
+
   @Get(':id')
+  @ApiOperation({ summary: 'Get course by id' })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Course returned' })
   async findById(@Param('id') id: string) {
     const courseId = Number(id);
     if (isNaN(courseId)) {
@@ -55,6 +82,8 @@ export class CoursesController {
   // -----------------------------
   @Get('auth/me')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get courses visible to current user' })
+  @ApiResponse({ status: 200, description: 'Courses returned for user' })
   async findAllForStudent(@Req() req: RequestWithUser) {
     return this.coursesService.findAll(req.user.id);
   }
@@ -66,11 +95,51 @@ export class CoursesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
   @UseInterceptors(FileInterceptor('thumbnail'))
+  @ApiOperation({ summary: 'Create a new course (instructor)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: CreateCourseDto })
+  @ApiResponse({ status: 201, description: 'Course created' })
   async createCourse(
     @Body() body: CreateCourseDto,
     @UploadedFile() thumbnail: Express.Multer.File,
     @Req() req: RequestWithUser,
   ) {
+    // Coerce potential string inputs from Swagger UI to expected types
+    const anyBody: any = body as any;
+    if (typeof anyBody.categoryId === 'string') {
+      const trimmed = anyBody.categoryId.trim();
+      body.categoryId = trimmed === '' ? undefined : Number(trimmed);
+    }
+    if (typeof (anyBody.prerequisites) === 'string') {
+      body.prerequisites = (anyBody.prerequisites as string)
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+    }
+    if (Array.isArray(anyBody.lessons)) {
+      body.lessons = anyBody.lessons
+        .map((item: any, index: number) => {
+          if (typeof item === 'string') {
+            const t = item.trim();
+            return t ? { title: t, order: index + 1 } : null;
+          }
+          const title = item?.title?.toString().trim();
+          if (!title) return null;
+          const normalized: any = { title };
+          if (item.content != null) normalized.content = String(item.content);
+          if (item.videoUrl != null) normalized.videoUrl = String(item.videoUrl);
+          if (item.attachmentUrl != null) normalized.attachmentUrl = String(item.attachmentUrl);
+          if (item.duration != null) normalized.duration = String(item.duration);
+          if (item.order != null) {
+            const parsedOrder = Number(item.order);
+            normalized.order = isNaN(parsedOrder) ? index + 1 : parsedOrder;
+          } else {
+            normalized.order = index + 1;
+          }
+          return normalized;
+        })
+        .filter(Boolean) as any;
+    }
     if (!body.title) throw new BadRequestException('Course title is required');
     body.instructorId = req.user.id;
 
@@ -101,18 +170,15 @@ export class CoursesController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Delete a course (instructor)' })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiResponse({ status: 200, description: 'Course deleted' })
   async deleteCourse(@Param('id') id: string, @Req() req: RequestWithUser) {
     const courseId = Number(id);
     if (isNaN(courseId)) throw new BadRequestException('Invalid course ID');
     return this.coursesService.deleteCourse(courseId, req.user.id);
   }
 
-  @Get('analytics')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.INSTRUCTOR)
-  async getCourseAnalytics(@Req() req: RequestWithUser) {
-    return this.coursesService.getCourseAnalytics(req.user.id);
-  }
 
   // -----------------------------
   // Lesson Management
@@ -120,6 +186,23 @@ export class CoursesController {
   @Post(':id/lessons')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Add lesson to a course' })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+        videoUrl: { type: 'string' },
+        attachmentUrl: { type: 'string' },
+        duration: { type: 'string' },
+        order: { type: 'number' },
+      },
+      required: ['title'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Lesson added' })
   async addLesson(
     @Param('id') id: string,
     @Body() body: {
@@ -140,6 +223,24 @@ export class CoursesController {
   @Patch(':id/lessons/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Reorder lessons within a course' })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        lessonOrders: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { lessonId: { type: 'number' }, order: { type: 'number' } },
+          },
+        },
+      },
+      required: ['lessonOrders'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Lessons reordered' })
   async reorderLessons(
     @Param('id') id: string,
     @Body() body: { lessonOrders: { lessonId: number; order: number }[] },
@@ -154,6 +255,16 @@ export class CoursesController {
   @Post(':id/prerequisites')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Add a prerequisite to a course' })
+  @ApiParam({ name: 'id', description: 'Course ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { prerequisiteName: { type: 'string' } },
+      required: ['prerequisiteName'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Prerequisite added' })
   async addPrerequisite(
     @Param('id') id: string,
     @Body() body: { prerequisiteName: string },
@@ -171,6 +282,8 @@ export class CoursesController {
   @Get('instructor/me')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Get courses for current instructor' })
+  @ApiResponse({ status: 200, description: 'Instructor courses returned' })
   async findCoursesForInstructor(@Req() req: RequestWithUser) {
     return this.coursesService.findByInstructor(req.user.id);
   }
