@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Tailwind v4 base reset complements Next defaults */
+@layer base {
+  html, body, #__next { height: 100%; }
+}
+
+@layer utilities {
+  .container { @apply mx-auto px-4; }
+}
+
+

@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  role Role @default(STUDENT)
+  bio       String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Instructor's courses
+  courses Course[] @relation("InstructorCourses")
+
+  // Student relations
+  enrollments Enrollment[]
+  progress    Progress[]
+  profile                String?
+  isVerified                Boolean  @default(false)
+  verificationToken         String? 
+  verificationTokenExpiry   DateTime?
+}
+
+model Course {
+  id           Int     @id @default(autoincrement())
+  title        String
+  description  String?
+  instructorId Int
+  instructor   User    @relation("InstructorCourses", fields: [instructorId], references: [id])
+
+  lessons     Lesson[]
+  enrollments Enrollment[]
+  progress    Progress[]
+
+  // Category relation
+  categoryId  Int?
+  category    CourseCategory? @relation(fields: [categoryId], references: [id])
+
+  // Difficulty level
+  difficulty  Difficulty @default(Beginner)
+
+  // Duration
+  duration     String?      // e.g., "3h 30m"
+
+  // Thumbnail URL
+  thumbnailUrl String?      // store uploaded thumbnail URL
+
+
+  // Informational prerequisites
+  prerequisites Json? // store array of strings e.g. ["Basic JS", "HTML & CSS"]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("Course")
+}
+
+model Lesson {
+  id         Int     @id @default(autoincrement())
+  title      String
+  content    String?
+  videoUrl   String?
+  attachmentUrl String?  // optional file/pdf attachment
+  duration   String?     // lesson duration e.g., "15 minutes", "1 hour"
+  order      Int         // lesson order within course
+  courseId   Int
+  course     Course  @relation(fields: [courseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourseCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+
+  courses     Course[]
+}
+
+model Enrollment {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  courseId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  progress           Int       @default(0)     
+  completedLessonIds Json?                    
+  completedAt        DateTime?    
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  certificateUrl String?
+
+  @@unique([studentId, courseId])
+}
+
+model Progress {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  courseId  Int
+  completed Boolean  @default(false)
+  score     Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+}
+
+ enum Role {
+  STUDENT
+  INSTRUCTOR
+}
+
+
+enum Difficulty {
+  Beginner
+  Intermediate
+  Advanced
+}
+
+
