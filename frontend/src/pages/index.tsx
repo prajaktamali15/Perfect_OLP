@@ -226,13 +226,41 @@ export default function LandingPage() {
                   key={course.id}
                   className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition overflow-hidden flex flex-col"
                 >
-                  {course.thumbnailUrl && (
-                    <img
-                      src={`http://localhost:4000${course.thumbnailUrl}`}
-                      alt={course.title}
-                      className="w-full h-44 object-cover"
-                    />
-                  )}
+                  <div className="relative h-44 bg-gradient-to-br from-indigo-500 to-purple-600">
+                    {course.thumbnailUrl ? (
+                      <img
+                        src={`http://localhost:4000${course.thumbnailUrl}`}
+                        alt={course.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`absolute inset-0 flex items-center justify-center ${course.thumbnailUrl ? 'hidden' : ''}`}>
+                      <div className="text-center text-white">
+                        <svg className="mx-auto h-12 w-12 mb-2 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-sm font-medium">Course Thumbnail</p>
+                      </div>
+                    </div>
+                    {/* Difficulty Badge */}
+                    <div className="absolute top-3 right-3">
+                      <span
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          course.difficulty === "Beginner"
+                            ? "bg-green-100 text-green-800"
+                            : course.difficulty === "Intermediate"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {course.difficulty}
+                      </span>
+                    </div>
+                  </div>
                   <div className="p-5 flex-1 flex flex-col justify-between">
                     <div onClick={() => toggleExpand(course.id)} className="cursor-pointer">
                       <h2 className="text-lg font-semibold text-gray-800 hover:text-indigo-600 transition">
@@ -249,17 +277,6 @@ export default function LandingPage() {
                     </div>
 
                     <div className="mt-3 flex justify-between items-center">
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded ${
-                          course.difficulty === "Beginner"
-                            ? "bg-green-100 text-green-700"
-                            : course.difficulty === "Intermediate"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {course.difficulty}
-                      </span>
                       {expandedCourseId === course.id && (
                         <div className="flex gap-2 mt-3 w-full">
                           <button

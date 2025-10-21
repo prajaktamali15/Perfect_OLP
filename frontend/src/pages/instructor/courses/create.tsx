@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import InstructorLayout from "../../../components/InstructorLayout";
+import ThumbnailUpload from "../../../components/ThumbnailUpload";
 import { createCourse, addLesson, LessonFormData, getCategories } from "../../../lib/api";
 import { toast } from "react-hot-toast";
 
@@ -211,16 +212,11 @@ export default function CreateCoursePage() {
               />
             </div>
 
-            {/* Thumbnail */}
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2">Thumbnail</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setThumbnail(e.target.files?.[0] || null)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
+            {/* Thumbnail Upload */}
+            <ThumbnailUpload
+              thumbnail={thumbnail}
+              setThumbnail={setThumbnail}
+            />
 
             {/* Prerequisites */}
             <div>

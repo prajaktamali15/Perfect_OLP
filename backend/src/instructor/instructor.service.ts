@@ -292,10 +292,9 @@ async getCourseById(courseId: number, userId?: number) {
   // Handle video
   let video = lesson.videoUrl; // default: keep existing
   if (data.videoUrl !== undefined) {
-    // New file uploaded
-    if (data.videoUrl && existsSync(join(process.cwd(), lesson.videoUrl || ''))) {
-      // remove old file if exists
-      unlinkSync(join(process.cwd(), lesson.videoUrl || ''));
+    // New file uploaded - remove old file if it exists
+    if (data.videoUrl && lesson.videoUrl && existsSync(join(process.cwd(), lesson.videoUrl))) {
+      unlinkSync(join(process.cwd(), lesson.videoUrl));
     }
     // use new file URL or keep existing if null
     video = data.videoUrl ? this.getPublicUrl(data.videoUrl) : lesson.videoUrl;
@@ -304,8 +303,9 @@ async getCourseById(courseId: number, userId?: number) {
   // Handle attachment
   let attachment = lesson.attachmentUrl; // default: keep existing
   if (data.attachmentUrl !== undefined) {
-    if (data.attachmentUrl && existsSync(join(process.cwd(), lesson.attachmentUrl || ''))) {
-      unlinkSync(join(process.cwd(), lesson.attachmentUrl || ''));
+    // New file uploaded - remove old file if it exists
+    if (data.attachmentUrl && lesson.attachmentUrl && existsSync(join(process.cwd(), lesson.attachmentUrl))) {
+      unlinkSync(join(process.cwd(), lesson.attachmentUrl));
     }
     attachment = data.attachmentUrl ? this.getPublicUrl(data.attachmentUrl) : lesson.attachmentUrl;
   }

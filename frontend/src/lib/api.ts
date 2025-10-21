@@ -133,17 +133,46 @@ export interface UpdateCoursePayload {
 }
 
 export async function createCourse(data: CreateCoursePayload, token: string) {
-  const res = await fetch(`${API_BASE_URL}/instructor/courses`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Failed to create course");
+  // Check if we have a thumbnail file to upload
+  const hasThumbnail = data.thumbnail && data.thumbnail instanceof File;
+  
+  if (hasThumbnail) {
+    // Use FormData for file upload
+    const formData = new FormData();
+    formData.append("title", data.title);
+    formData.append("description", data.description || "");
+    formData.append("categoryId", data.categoryId.toString());
+    if (data.difficulty) formData.append("difficulty", data.difficulty);
+    if (data.duration) formData.append("duration", data.duration);
+    if (data.prerequisites) formData.append("prerequisites", JSON.stringify(data.prerequisites));
+    formData.append("thumbnail", data.thumbnail);
+    
+    const res = await fetch(`${API_BASE_URL}/instructor/courses`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to create course");
+    }
+    const json = await res.json();
+    return json.course;
+  } else {
+    // Use JSON for regular data
+    const res = await fetch(`${API_BASE_URL}/instructor/courses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to create course");
+    }
+    const json = await res.json();
+    return json.course;
   }
-  const json = await res.json();
-  return json.course;
 }
 
 export async function updateCourse(id: number, data: UpdateCoursePayload, token: string) {

@@ -21,10 +21,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import { UploadedFile } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -91,12 +92,24 @@ export class InstructorController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR)
   @Post()
+  @UseInterceptors(InstructorController.thumbnailUploadInterceptor())
   @ApiOperation({ summary: 'Create a new course' })
   @ApiBody({ type: CreateCourseDto })
   @ApiResponse({ status: 201, description: 'Course created successfully' })
-  async createCourse(@Req() req: any, @Body() dto: CreateCourseDto) {
-    const thumbnailUrl = dto.thumbnailUrl ?? undefined;
+  async createCourse(
+    @Req() req: any, 
+    @Body() dto: CreateCourseDto,
+    @UploadedFile() thumbnail?: Express.Multer.File
+  ) {
     const duration = dto.duration ?? undefined;
+    
+    // Handle thumbnail upload
+    let thumbnailUrl: string | undefined = undefined;
+    if (thumbnail) {
+      thumbnailUrl = `/uploads/thumbnails/${thumbnail.filename}`;
+    } else if (dto.thumbnailUrl) {
+      thumbnailUrl = dto.thumbnailUrl;
+    }
 
     const course = await this.instructorService.createCourse(req.user.id, {
       ...dto,
@@ -186,6 +199,31 @@ export class InstructorController {
   async getCourse(@Req() req: any, @Param('id') courseId: string) {
     if (!courseId) throw new BadRequestException('Course ID is required');
     return this.instructorService.getCourseById(Number(courseId), req.user.id);
+  }
+
+  // ----------------------
+  // Thumbnail Upload Config
+  // ----------------------
+  private static thumbnailUploadInterceptor() {
+    const uploadPath = join(process.cwd(), 'uploads', 'thumbnails');
+    if (!existsSync(uploadPath)) mkdirSync(uploadPath, { recursive: true });
+
+    return FileInterceptor('thumbnail', {
+      storage: diskStorage({
+        destination: uploadPath,
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, uniqueSuffix + extname(file.originalname));
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return cb(new BadRequestException('Only image files are allowed for thumbnails'), false);
+        }
+        cb(null, true);
+      },
+    });
   }
 
   // ----------------------
@@ -285,8 +323,22 @@ export class InstructorController {
       title: body.title,
       content: body.content,
     };
-    if (videoUrl) updateData.videoUrl = videoUrl;
-    if (attachmentUrl) updateData.attachmentUrl = attachmentUrl;
+    
+    // Handle video file - if no new file uploaded, keep existing or set to null
+    if (videoUrl) {
+      updateData.videoUrl = videoUrl;
+    } else if (files.videoFile === undefined) {
+      // No video file in request - keep existing
+      updateData.videoUrl = undefined;
+    }
+    
+    // Handle attachment file - if no new file uploaded, keep existing or set to null  
+    if (attachmentUrl) {
+      updateData.attachmentUrl = attachmentUrl;
+    } else if (files.attachmentFile === undefined) {
+      // No attachment file in request - keep existing
+      updateData.attachmentUrl = undefined;
+    }
 
     return this.instructorService.updateLesson(req.user.id, Number(lessonId), updateData);
   }

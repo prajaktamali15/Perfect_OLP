@@ -175,7 +175,7 @@ export default function CourseDetailsPage() {
           </h2>
 
           <div className="flex-1 md:ml-6">
-            <div className="w-full bg-gray-400 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-600 rounded-full h-2 overflow-hidden">
               <div
                 className="bg-indigo-600 h-2 rounded-full transition-all duration-400"
                 style={{ width: `${Math.min(course.progress, 100)}%` }}
@@ -189,7 +189,7 @@ export default function CourseDetailsPage() {
 
         {/* Course Info */}
         {showCourseInfo && (
-          <div className="bg-white border border-gray-400 rounded-lg shadow-sm p-5 mb-6">
+          <div className="bg-white border border-gray-600 rounded-lg shadow-sm p-5 mb-6">
             <p className="text-gray-700 mb-2">
               {course.description || "No description available"}
             </p>
@@ -213,7 +213,7 @@ export default function CourseDetailsPage() {
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Lessons Sidebar */}
-          <div className="w-full lg:w-1/4 bg-gray-50 border border-gray-400 rounded-lg p-4">
+          <div className="w-full lg:w-1/4 bg-gray-50 border border-gray-600 rounded-lg p-4">
             <h5 className="text-lg font-semibold text-gray-800 mb-3">Lessons</h5>
             <ul className="space-y-2">
               {course.lessons.map((lesson) => (
@@ -223,7 +223,7 @@ export default function CourseDetailsPage() {
                   onClick={() => setCurrentLessonId(lesson.id)}
                   className={`flex justify-between items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition ${
                     currentLessonId === lesson.id
-                      ? "bg-indigo-100 text-indigo-700 font-medium border border-indigo-400"
+                      ? "bg-indigo-100 text-indigo-700 font-medium border border-indigo-600"
                       : "hover:bg-gray-100 text-gray-700"
                   }`}
                 >
@@ -240,9 +240,9 @@ export default function CourseDetailsPage() {
               <label className="block text-sm text-gray-600 mb-1">
                 Progress: {progressPercent}%
               </label>
-              <div className="w-full bg-gray-400 rounded-full h-2">
+              <div className="w-full bg-gray-600 rounded-full h-2">
                 <div
-                  className="bg-green-500 h-2 rounded-full transition-all duration-400"
+                  className="bg-green-500 h-2 rounded-full transition-all duration-600"
                   style={{ width: `${progressPercent}%` }}
                 ></div>
               </div>
@@ -250,7 +250,7 @@ export default function CourseDetailsPage() {
           </div>
 
           {/* Lesson Content */}
-          <div className="flex-1 bg-white border border-gray-400 rounded-lg shadow-sm p-6">
+          <div className="flex-1 bg-white border border-gray-600 rounded-lg shadow-sm p-6">
             {currentLesson && (
               <>
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">
@@ -263,8 +263,8 @@ export default function CourseDetailsPage() {
                     <video
                       controls
                       src={`http://localhost:4000${currentLesson.videoUrl}`}
-                      className="w-full rounded-lg border border-gray-400"
-                      style={{ maxHeight: "400px", objectFit: "contain" }}
+                      className="w-full rounded-lg border border-gray-600"
+                      style={{ maxHeight: "600px", objectFit: "contain" }}
                     />
                   </div>
                 )}
@@ -296,7 +296,7 @@ export default function CourseDetailsPage() {
                 {/* Navigation */}
                 <div className="flex justify-between mt-6">
                   <button
-                    className="px-4 py-2 text-sm rounded-lg border border-gray-400 text-gray-700 hover:bg-gray-100 transition"
+                    className="px-4 py-2 text-sm rounded-lg border border-gray-600 text-gray-700 hover:bg-gray-100 transition"
                     onClick={handlePreviousLesson}
                     disabled={currentLessonId === course.lessons[0]?.id}
                   >
